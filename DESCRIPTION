@@ -1,0 +1,16 @@
+Package: HEADS
+Title: Datasets used in exercises in 
+  Healthcare Engineering - Analytics and Decision Sciences textbook
+Version: 0.0.0.9100
+Authors@R: 
+    person("Bruce", "Hartman", , "bruce@ahartman.net", role = c("aut", "cre"))
+Description: The package provides access to datasets required for the textbook.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 3.5)
+LazyData: true
+Imports: 
+    lifecycle
