@@ -1,0 +1,102 @@
+---
+title: "NHANES Data"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Load the NHANES files for the HEADS course. 
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+# Data
+
+Download the nhanesA package as a zip file from the site in the text, since it has been banned for a violation.
+
+This downloaded zip file package must be installed using terminal command
+R CMD INSTALL "C:\Users\bruce\OneDrive\Documents\R Material\HEADS\nhanesA_1.1.tar.gz"
+
+Following that one can make it available.
+```{r}
+library(nhanesA)
+```
+
+Now we get the filenames in the text (a) using the function provided.
+```{r}
+nhanesTables('DEMO', year=2015, details=T)
+nhanesTables('EXAM', year=2015, details=T)
+nhanesTables('LAB', year=2015, details=T)
+```
+
+```{r}
+browseNHANES()
+```
+
+
+We get the files themselves using the R scripts in /data_raw.
+
+# Data
+Now we can make the files available using the <code>data()</code>
+ function.
+ 
+```{r}
+data(demo_i)
+data(bmx_i)
+data(bpx_i)
+data(trigly_i)
+```
+
+And check out the data.
+
+The Demographic data:
+```{r}
+demo_i %>% skim()
+```
+
+The Examination data:
+```{r}
+bmx_i %>% skim()
+
+bpx_i %>% skim()
+```
+
+The Laboratory data.
+```{r}
+trigly_i %>% skim()
+```
+
+
+# Documentation
+The documentation for the NHANES data for 2015 can be accessed at [the NHANES data website](https://wwwn.cdc.gov/nchs/nhanes/continuousnhanes/default.aspx)
+
+```{r}
+browseURL("https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2015/DataFiles/DEMO_I.htm")
+browseURL("https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2015/DataFiles/BMX_I.htm")
+browseURL("https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2015/DataFiles/BPX_I.htm")
+browseURL("https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2015/DataFiles/TRIGLY_I.htm")
+```
+
+# References
+:::{#r1}
+[NHANES data](https://wwwn.cdc.gov/nchs/nhanes/Default.aspx) Center for Disease Control, NHANES data. (https://wwwn.cdc.gov/nchs/nhanes/Default.aspx)
+:::
+
+:::{#r2}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

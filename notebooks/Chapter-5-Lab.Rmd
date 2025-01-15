@@ -1,0 +1,238 @@
+---
+title: "Chapter-5-Lab"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 5 Lab from [the HEADS text](#r1).
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+# Univariate Linear Regression (5.7.1)
+
+```{r}
+data(birthwt)
+birthwt
+```
+
+```{r}
+#perform univeriate linear regression with mother's age against birth weight
+fit <- lm(bwt~age, data = birthwt)
+fit
+```
+
+```{r}
+#obtain the 95% confidence interval for the coefficients
+confint(fit)
+## 2.5 % 97.5 %
+## (Intercept) 2184.543672 3126.94527
+## age -7.342539 32.20196
+fit %>% tidy(conf.int = TRUE)
+```
+
+```{r}
+#predict birth weight based on the given mothers' ages
+predict(fit, data.frame(age=c(25,28,50)))
+```
+
+```{r}
+fit %>% summary()
+fit %>% glance
+fit %>% tidy
+```
+
+```{r}
+#plot the graph
+ggplot(birthwt, aes(x=age, y=bwt)) + 
+  geom_smooth(method = lm, se = FALSE) +
+  geom_point()
+```
+
+# Categorical Variable (5.7.2)
+```{r}
+#convert to factor variable
+birthwt$race <- as.factor(birthwt$race)
+```
+
+```{r}
+#perform univariate linear regression with race against birth weight
+fit <- lm(bwt~race, data = birthwt)
+summary(fit)
+```
+
+# Multivariate Linear Regression (5.7.3)
+```{r}
+#perform multivariate linear regression with age and smoke against birth weight
+fit <- lm(bwt ~ age + smoke, data = birthwt)
+fit %>% summary
+```
+
+Let us use all the variables in the model. However, because low is an indicator variable for bwt, it is not a valid predictor variable. We remove it from the data by using the subset() function.
+```{r}
+#subset the data to exclude the low variable
+birthwt1 = birthwt %>% dplyr::select(-low)
+names(birthwt1)
+```
+After removing low, we can develop a multivariate linear regression model using all of the remaining
+variables. 
+```{r}
+#perform linear regression with all the variables against birth weight
+fit <- lm(bwt~., data = birthwt1)
+summary(fit)
+```
+
+According to the summary, the statistically significant variables are lwt, race2, race3, smoke, and ht.
+
+# Nonlinear Transformation of Predictor Variables (5.7.4)
+```{r}
+#perform linear regression with age and age^2
+fit <- lm(bwt~age+I(age^2), data = birthwt)
+summary(fit)
+```
+
+```{r}
+#perform linear regression with sixth degree polynomial with respect to age
+fit <- lm(bwt~poly(age,6), data = birthwt)
+summary(fit)
+```
+
+# Variable Selection (5.7.5)
+In order to perform stepwise selection, we need to load the library leaps [151](#r2). After loading this library, we use the <code>regsubsets()</code>
+ function to either perform forward or backward stepwise selection.
+```{r}
+library(leaps)
+#forward selection
+fit.fwd <- regsubsets(bwt~., data = birthwt1, method = "forward")
+#backward selection
+fit.bwd <- regsubsets(bwt~., data = birthwt1, method = "backward")
+
+#summary of forward stepwise selection
+fwd.summary <- summary(fit.fwd)
+fwd.summary$outmat
+#summary of backward stepwise selection
+bwd.summary <- summary(fit.bwd)
+bwd.summary$outmat
+```
+
+For forward selection, we see that the first variable included in the model is ui, which is indicated by “*".
+After that, ht is included in the model in the next iteration. For backward selection, ftv is removed from the
+full model in the first iteration and then age in the next iteration as indicated by “*" being not present.
+
+Best model: AIC (Cp) and BIC
+```{r}
+#list C_p for forward stepwise selection models
+fwd.summary$cp
+bwd.summary$cp
+```
+
+```{r}
+#list BIC for forward stepwise selection models
+fwd.summary$bic
+#list BIC for backward stepwise selection models
+bwd.summary$bic
+```
+
+```{r}
+#identify model with the lowest C_p
+which.min(fwd.summary$cp)
+which.min(bwd.summary$cp)
+#identify model with the lowest BIC
+which.min(fwd.summary$bic)
+which.min(bwd.summary$bic)
+```
+
+```{r}
+fwd.summary$outmat[6,]
+bwd.summary$outmat[6,]
+```
+Both techniques choose the same 6 variables.
+
+Coefficients:
+```{r}
+fit.fwd %>% coef(6)
+fit.bwd %>% coef(6)
+```
+The two searches found the same regression. This is unusual!!!! One of the issues with selection this way is the different methods may find different answers! How do you explain that to a customer?
+
+# LASSO Regression
+
+Prepare for <code>glmnet</code>:
+```{r}
+library(glmnet)
+#subset for x and y
+x <- subset(birthwt1, select = -bwt)
+y <- subset(birthwt1, select = bwt)
+#format as matrices
+x <- model.matrix(~., x)
+y <- as.matrix(y)
+```
+
+```{r}
+#perform lasso with lambda = 15; lasso has alpha=1
+fit <- glmnet(x,y, alpha = 1, lambda = 15)
+fit$beta
+```
+
+Intercept, <code>age</code>
+ and <code>ftv</code>
+  are left out!
+  
+Prediction:
+```{r}
+#subset for an observation
+obs1 <- model.matrix(~., birthwt1[1,-9])
+obs1
+#predict on the observation
+predict(fit, newx = obs1)
+```
+
+# Segmented Time Series Analysis (5.7.6)
+```{r}
+data(drivers, package="MASS")
+drivers %>% glimpse
+#subset the drivers data and convert to dataframe
+d <- drivers[145:192]
+d <- as.data.frame(d)
+#create three variables
+d$t <- 1:48
+d$ind <- 0
+d$ind[26:48] <- 1
+d$t2 <- pmax(d$t-25,0)
+```
+
+```{r}
+#fit time series
+fit <- lm(d~t+ind+t2, data=d)
+summary(fit)
+```
+
+>According to the summary, the number of deaths or severe injuries dropped by about 623.72 on average
+per month. If the significance level is set to α = 0.05, then the reduction in the number of deaths or injuries 
+is statistically significant since the corresponding p-value for βˆ2 is 2.57×10−7.
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

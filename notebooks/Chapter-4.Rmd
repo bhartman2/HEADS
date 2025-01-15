@@ -1,0 +1,49 @@
+---
+title: "Chapter-4"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 4 Problems from [the HEADS text](#r1).
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+# Data
+```{r}
+data(ControlChartConstants, package="HEADS")
+```
+
+# Chapter 4
+
+## Control Chart Constants
+This chart is prepared by simulation and may be slightly different from the one in the text.
+```{r}
+ControlChartConstants %>% round(digits=3)
+```
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

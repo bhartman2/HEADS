@@ -1,0 +1,197 @@
+---
+title: "Chapter-3"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 3 Problems from [the HEADS text](#r1).
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+# Data
+Use the <code>birthwt</code> dataset.
+```{r}
+data(birthwt)
+birthwt %>% skim
+```
+
+# Chapter 3
+
+## Z-tests (3.3.1)
+
+### Lower-tailed test
+Let us test the following hypothesis for <code>bwt</code>:
+
+- $H0 : μ = 3000;$ vs. 
+- $H1 : μ < 3000$.
+
+In order to perform the lower-tailed z-test, we compute the sample mean and sample standard deviation. The
+sample mean is computed using the <code>mean()</code>
+ function, and the sample standard deviation is computed using
+the <code>sd()</code> function. It is done as follows, per the book:
+```{r}
+# textbook solution
+mean_bwt <- mean(birthwt$bwt)
+mean_bwt
+## [1] 2944.587
+#compute standard deviation
+sd_bwt <- sd(birthwt$bwt)
+sd_bwt
+## [1] 729.2143
+```
+
+The modern way is to use <code>summarize</code> and create a tibble.
+```{r}
+birthwt %>% summarize(mean_bwt = mean(bwt), 
+                      sd_bwt = sd(bwt), 
+                      n = n()
+                      )
+```
+
+$z$-statistic: add to tibble.
+```{r}
+birthwt %>% summarize(mean_bwt = mean(bwt), sd_bwt = sd(bwt), n = n(),
+                      z = (mean_bwt - 3000)/(sd_bwt/sqrt(n)))
+```
+P-value:
+```{r}
+birthwt %>% summarize(mean_bwt = mean(bwt), 
+                      sd_bwt = sd(bwt), 
+                      n = n(),
+                      z = (mean_bwt - 3000)/(sd_bwt/sqrt(n)),
+                      p.value = pnorm(z)
+                      )
+```
+
+### Upper-tailed test
+New hypothesis for <code>bwt</code>:
+
+- $H0 : μ = 2700;$ vs. 
+- $H1 : μ > 2700$.
+
+```{r}
+birthwt %>% summarize(mean_bwt = mean(bwt), 
+                      sd_bwt = sd(bwt), 
+                      n = n(),
+                      z.lower = (mean_bwt - 3000)/(sd_bwt/sqrt(n)),
+                      p.lower = pnorm(z.lower),
+                      z.upper = (mean_bwt-2700)/(sd_bwt/sqrt(n)),
+                      p.upper = 1-pnorm(z.upper)                        
+                      )
+```
+### Two-tailed test
+New hypothesis for <code>bwt</code>:
+
+- $H0 : μ = 2800;$ vs. 
+- $H1 : μ \neq 2800$.
+
+```{r}
+birthwt %>% summarize(mean_bwt = mean(bwt), 
+                      sd_bwt = sd(bwt), 
+                      n = n(),
+                      z.lower = (mean_bwt - 3000)/(sd_bwt/sqrt(n)),
+                      p.lower = pnorm(z.lower),
+                      z.upper = (mean_bwt-2700)/(sd_bwt/sqrt(n)),
+                      p.upper = 1-pnorm(z.upper),
+                      z.two = (mean_bwt-2800)/(sd_bwt/sqrt(n)),
+                      p.two = 2*min(1-pnorm(z.two),pnorm(z.two))
+                      )
+```
+The table shows the results of the three hypothesis tests.
+
+### t.test Function
+We can use the <code>t.test</code> function to do all three. It converges to the normal z-test when the number of observations is large enough (say, over 30 or 40). We have 189 here. 
+```{r}
+ht.lower = birthwt %>% dplyr::select(bwt) %>% 
+  t.test(alternative="l", mu=3000) %>% tidy()
+
+ht.upper = birthwt %>% dplyr::select(bwt) %>% 
+  t.test(alternative="g", mu=2700) %>% tidy()
+
+ht.two = birthwt %>% dplyr::select(bwt) %>% 
+  t.test(alternative="t", mu=2800) %>% tidy()
+
+ht.lower
+ht.upper
+ht.two
+```
+
+Comparing the z-test with the t-test:
+```{r}
+#add comparison to the data
+result = birthwt %>% summarize(mean_bwt = mean(bwt), 
+                      sd_bwt = sd(bwt), 
+                      n = n(),
+                      z.lower = (mean_bwt - 3000)/(sd_bwt/sqrt(n)),
+                      p.lower = pnorm(z.lower),
+                      z.upper = (mean_bwt-2700)/(sd_bwt/sqrt(n)),
+                      p.upper = 1-pnorm(z.upper),
+                      z.two = (mean_bwt-2800)/(sd_bwt/sqrt(n)),
+                      p.two = 2*min(1-pnorm(z.two),pnorm(z.two))
+                      ) %>% 
+  mutate(t.lower = ht.lower$statistic, 
+         t.upper=ht.upper$statistic,
+         t.two = ht.two$statistic) %>% 
+  mutate(tp.lower = ht.lower$p.value, 
+         tp.upper=ht.upper$p.value,
+         tp.two = ht.two$p.value)
+
+result %>% dplyr::select(z.lower, t.lower,
+         z.upper, t.upper,
+         z.two, t.two)
+
+result %>% 
+  dplyr::select(p.lower, tp.lower,
+         p.upper, tp.upper,
+         p.two, tp.two) 
+```
+A perfect match for z and t statistic values. 
+The lower p-values match to 3 places. 
+The upper and two-sided p-values make the z-test less conservative, showing a smaller probability of the null hypothesis being true. 
+The t-distribution has 'fatter tails' than the normal distribution for z.
+
+## Two-sample z (or t) tests
+For the two-sample case we use the <code>smoke</code> column, which is binary 0-1.
+```{r}
+birthwt %>% dplyr::select(smoke) %>% skim
+```
+
+It's better to use the built-in function <code>t.test</code>, which can also perform a two-sample t-test. Using the function for a two-sample test is similar for population means. It's easier to use the formula interface, rather than specify the two classes. We do not need to specify $\mu$ since its default value is 0- the two classes have equal means, so their difference is zero. 
+
+We perform a two-sample t-test on the hypotheses for <code>bwt</code>:
+
+- $H0 : μ_{non-smoker}−μ_{smoker} = 0;$ vs. 
+- $H1 : μ_{non-smoker}−μ_{smoker} > 0$
+
+```{r}
+t.test(bwt ~ smoke, data=birthwt, alternative="g") %>% 
+  tidy()
+```
+
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

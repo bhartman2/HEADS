@@ -1,0 +1,95 @@
+---
+title: "Chapter-2"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 2 Problems from [the HEADS text](#r1).
+
+# Packages
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+Github packages:
+```{r}
+library(devtools)
+install_github("bhartman2/mbadtools")
+library(mbadtools)
+```
+
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+# Data
+```{r}
+data(bpx_i)
+bpx_i %>% skim
+```
+
+```{r}
+data(trigly_i)
+trigly_i %>% skim
+```
+
+
+# Chapter 2
+
+# Exercise 3
+Part 3b: use bpx dataset.
+```{r}
+tibble(
+  bpx_i %>% dplyr::select(contains("SY")) %>% filter(BPXSY1>140) %>% 
+    summarize(bigsy =n()),
+  bpx_i %>% dplyr::select(contains("SY")) %>% filter(!is.na(BPXSY1)) %>% 
+    summarize(valid=n())
+) %>% mutate(ratiopct = 100*bigsy/valid)
+```
+
+Part 3c: Use trigly dataset.
+```{r}
+tibble(
+  trigly_i %>% filter(LBDLDL>150) %>% summarize(bigldl=n()),
+  trigly_i %>% filter(!is.na(LBDLDL)) %>% summarize(valid=n())
+) %>% mutate(ratiopct = 100*bigldl/valid)
+```
+# Exercise 4
+```{r}
+data(HealthcareCostsMEPS)
+HealthcareCostsMEPS %>% glimpse
+```
+Part (a)
+```{r}
+HealthcareCostsMEPS %>% distinct(CONDITIONCOUNT) %>% arrange(CONDITIONCOUNT)
+```
+CONDITIONCOUNT ranges from 0 to 12.
+
+```{r}
+df = HealthcareCostsMEPS %>% group_by(CONDITIONCOUNT) %>%
+  summarize( pwt = sum(WEIGHT) ) %>% 
+  mutate( prop = 100*pwt/sum(pwt))
+ggplot(df) +
+  geom_col(aes(x=CONDITIONCOUNT,y=prop ), fill="lightblue", color="black")+
+  labs(x="Number of conditions", y="Population (percent)")
+```
+
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

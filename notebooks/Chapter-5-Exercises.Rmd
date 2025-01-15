@@ -1,0 +1,300 @@
+---
+title: "Chapter-5-Exercises"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 5 Exercises from [the HEADS text](#r1).
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+
+# Exercise 15
+Catheter length.
+```{r}
+data(Table_5_9)
+Table_5_9
+```
+
+Part (a):
+```{r}
+fit59 = lm(CatheterLength~Height, data=Table_5_9)
+fit59 %>% glance
+fit59 %>% tidy()
+```
+Part (b):
+```{r}
+fit59b = lm(CatheterLength~Weight, data=Table_5_9)
+fit59b %>% glance
+fit59b %>% tidy()
+```
+
+Part (c):
+The models have similar R-squared values. I both cases the coefficients are significant.
+
+Part (d):
+We can put both patients in the same newdata, because each regression has just one driver.
+```{r}
+ndata = data.frame(Height=52.7, Weight=77.5)
+
+preda = predict(fit59, newdata=ndata, se.fit=T)
+predb = predict(fit59b, newdata=ndata, se.fit=T)
+tibble(
+ lengtha = preda$fit,
+ lengthb = predb$fit
+)
+```
+
+# Exercise 16
+```{r}
+data(Table_5_10)
+Table_5_10
+```
+
+Part (a):
+```{r}
+Table_5_10 %>% GGally::ggpairs(progress=F)
+```
+Not much relation with Weight, more with Age.
+
+```{r}
+fit510a = lm(BloodFatContent ~ Age, data=Table_5_10)
+fit510aw = lm(BloodFatContent ~ Age + Weight, data=Table_5_10)
+fit510a %>% glance
+fit510a %>% tidy
+anova(fit510a, fit510aw)
+```
+Age alone has an R-squared of 70%; the Age coefficient of 5.32 is significant. Adding Weight to the regression does not produce a significant improvement (p.value=.57)
+
+# Exercise 17
+```{r}
+data(Table_5_11)
+Table_5_11
+Table_5_11 %>% GGally::ggpairs(progress=F)
+fit511 = lm(DiastolicBloodPressure ~ Cholesterol, data=Table_5_11)
+fit511 %>% glance
+fit511 %>% tidy
+```
+R-squared is very low. Overall p.value of regression is .15, not significant.  Cannot justify a relation.
+
+# Exercise 18
+```{r}
+data(Table_5_12)
+Table_5_12
+Table_5_12 %>% GGally::ggpairs(progress=F)
+```
+Part (a):
+```{r}
+fit512 = lm(SystolicBloodPressure ~ Age, data=Table_5_12)
+fit512 %>% glance
+fit512 %>% tidy
+```
+The R-squared is 63%; the pairs graph shows the relation might be significant. The tidy report shows a significant coefficient of Age is 1.41 mmHg/year.
+
+# Exercise 19
+```{r}
+data(Table_5_13)
+Table_5_13
+```
+Part (a):
+We can look at this with a pairs plot, to get both a graph and correlation coefficients.
+```{r}
+Table_5_13 %>% GGally::ggpairs(progress=F)
+```
+Part (b):
+```{r}
+fit513 = lm(SystolicBP~BMI, data=Table_5_13)
+fit513 %>% summary
+```
+R-squared is 52% and BMI coefficient = 1.42 is significant. There is a relation explaining about half the variation in SystolicBP.
+
+Part (c):
+We use a prediction interval because it says 'someone', not a group.
+```{r}
+pred = predict(fit513, newdata=data.frame(BMI=23), interval="prediction")
+pred
+```
+The lower and upper confidence limits define the confidence interval in this prediction. 
+
+# Exercise 20
+```{r}
+data(Table_5_14)
+Table_5_14
+```
+Part (a):
+```{r}
+fit514 = lm(PatientSatisfaction~., data=Table_5_14)
+fit514 %>% summary
+```
+
+Part (b) and (c)
+```{r}
+pred = predict(fit514, newdata=data.frame(LengthofStay=2, PreviousAdmissions=8), interval="p")
+pred
+```
+The confidence interval for this patient is satisfaction between 99 and 195. Adjusted R-squared is 63%, and PreviousAdmissions is a significant coefficient, whereas LengthOfStay is not.
+
+# Exercise 21
+```{r}
+data(PrescriptionsData)
+```
+Wrangling: set dummy for week 21 on.
+```{r}
+PrescriptionsData = PrescriptionsData %>% 
+  mutate(MedB = case_when(
+    Week >= 21 ~ 1,
+    .default = 0
+    ))
+PrescriptionsData %>% glimpse
+```
+Regression:
+```{r}
+fit521 = lm(Prescriptions ~ ., data = PrescriptionsData)
+fit521 %>% summary
+fit521 %>% confint()
+```
+
+Adjusted R-squared is 71%, and both coefficients are significant. It appears introduction of MedB caused a decline of about 178 Rx of MedA with a 95% confidence interval of (-215, -142).
+
+# Exercise 22
+LogLikelihoods
+
+# Exercise 23
+
+```{r}
+Data = data.frame(t, Prescriptions)
+Data = Data %>% 
+  mutate(MedB = case_when(t >= 5 ~ 1, .default = 0),
+         MedG = case_when(t >= 8 ~ 1, .default = 0)
+  )
+
+formula = "Prescriptions ~ t + MedB + MedG"
+fit523 = lm(formula, data=Data)
+```
+
+
+# Exercise 24
+Table 5.16
+
+# Exercise 25
+```{r}
+data("HealthcareCostsMEPS")
+HealthcareCostsMEPS %>% glimpse
+```
+Part (a):
+```{r}
+fit521a = lm(HEALTHCOSTS~AGE, data=HealthcareCostsMEPS)
+fit521b = lm(HEALTHCOSTS~CONDITIONCOUNT, data=HealthcareCostsMEPS)
+fit521a %>% tidy(conf.int=T)
+fit521b %>% tidy(conf.int=T)
+```
+Both AGE and CONDITIONCOUNT are significant predictors of HEALTHCOSTS, with estimates of $106 per year for AGE and $1989 per condition.
+
+Part (b):
+```{r}
+fit521m = lm(HEALTHCOSTS~.-WEIGHT-DUPERSID-HEARTDISEASE, data=HealthcareCostsMEPS)
+# F-test and R-squared
+fit521m %>% glance
+fit521m %>% tidy
+fit521m %>% summary
+```
+The adjusted R-squared is only 13%, but at least one coefficient is significant.
+
+Part (c): adding interactions
+```{r}
+fit521i = lm(HEALTHCOSTS~.-WEIGHT + SEX:RACE + FAMINC10:AGE - DUPERSID- HEARTDISEASE, data=HealthcareCostsMEPS)
+fit521i %>% tidy()
+fit521i %>% glance
+fit521i %>% summary
+```
+They don't change the Adjusted R-squared very much. It actually went down. CONDITIONCOUNT and AGE are significant coefficients. Neither interaction term is significant.
+
+Part (d): stepwise regression.
+```{r}
+library(leaps)
+# have to omit one disease to keep from being degenerate
+fit521sf = regsubsets(HEALTHCOSTS ~ . - HEARTDISEASE, 
+                      data=(HealthcareCostsMEPS %>% dplyr::select(-WEIGHT, -DUPERSID)),
+                      method ="forward", nvmax=24)
+# summary
+sum521sf = summary(fit521sf)
+# examine cp, df for graph
+x = data.frame(n=1:24, cp=round(sum521sf$cp, 3)); xlow=which.min(x$cp)
+ggplot(x) +
+  geom_line(aes(x=n, y=cp)) +
+  annotate("text", x=xlow, y=x$cp[xlow], label=xlow)
+# display coefficients of best fit
+fit521sf %>% coef(xlow) %>% enframe(name="Driver", value="Coefficient") %>% 
+  mutate(Coefficient=round(Coefficient,3))
+```
+```{r}
+library(leaps)
+# have to omit one disease to keep from being degenerate
+fit521sb = regsubsets(HEALTHCOSTS ~ . - HEARTDISEASE, 
+                      data=(HealthcareCostsMEPS %>% dplyr::select(-WEIGHT, -DUPERSID)),
+                      method ="backward", nvmax=24)
+# summary
+sum521sb = summary(fit521sb)
+# examine cp, df for graph
+x = data.frame(n=1:24, cp=round(sum521sb$cp, 3)); xlow=which.min(x$cp)
+ggplot(x) +
+  geom_line(aes(x=n, y=cp)) +
+  annotate("text", x=xlow, y=x$cp[xlow], label=xlow)
+# display coefficients of best fit
+fit521sb %>% coef(xlow) %>% enframe(name="Driver", value="Coefficient") %>% 
+  mutate(Coefficient=round(Coefficient,3))
+```
+
+
+
+# Exercise 26
+James Lopez Bernal, Steven Cummins, and Antonio Gasparrini. Interrupted time series regression for
+the evaluation of public health interventions: a tutorial. Int J Epidemiol., 46:348–355, 2017.
+
+# Exercise 27
+
+# Exercise 32
+```{r}
+data(Covid2020)
+Covid2020
+```
+Wrangle date:
+```{r}
+Covid2020 = Covid2020 %>% mutate(Date = mdy(DATE_OF_INTEREST), .after=1)
+```
+Plots:
+```{r}
+ggplot(Covid2020) +
+  geom_line(aes(Date,Cases), color="blue") +
+  geom_line(aes(Date,Hospitalizations), color="red") +
+  geom_point(aes(Date,Deaths), color="black")
+```
+
+
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::

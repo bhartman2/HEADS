@@ -1,0 +1,198 @@
+---
+title: "Chapter 5"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Solve Chapter 5 Problems from [the HEADS text](#r1).
+
+# Packages
+
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+For this text:
+```{r}
+library(HEADS)
+```
+
+# Data
+```{r}
+data(Table_5_1, package="HEADS")
+Table_5_1
+```
+
+# Chapter 5
+
+## Linear Regression (5.1)
+
+Figure 5.1.
+```{r}
+ggplot(Table_5_1, aes(Age, SBP)) +
+  geom_point() +
+  labs(y = "Systolic Blood Pressure")
+```
+
+Make predictions and add predictions to plot Figure 5.2
+```{r}
+fit=lm(SBP~Age, data=Table_5_1)
+pred = predict(fit)
+ggplot(Table_5_1, aes(Age, SBP)) +
+  geom_point() +
+  labs(y = "Systolic Blood Pressure") +
+  geom_line(aes(y=pred), color="blue")
+```
+
+Alternative plot:
+```{r}
+ggplot(Table_5_1, aes(Age, SBP)) +
+  geom_point() +
+  labs(y = "Systolic Blood Pressure") +
+  geom_smooth(method="lm", formula='y~x', se=F, color="blue")
+```
+
+```{r}
+fit %>% coef
+fit %>% tidy
+```
+
+### Validation of Coefficients (5.1.2)
+
+Confidence intervals:
+```{r}
+fit %>% tidy(conf.int=T)
+```
+
+Hypothesis tests:
+
+- $H0: \beta1 = 0$ vs. 
+- $H1: \beta1 ̸= 0.$
+
+```{r}
+fit %>% tidy %>% dplyr::select(term, estimate, statistic, p.value)
+```
+
+R-squared:
+```{r}
+fit %>% glance
+fit %>% anova %>% tidy()
+```
+
+## Multiple Linear Regression (5.2)
+
+### Example 5.2.1
+The dataset is in Table 5.3 and is based on [Robertson and Armitage, 1959](#r2).
+
+```{r}
+data(Table_5_3)
+Table_5_3
+```
+
+Figure 5.3.
+```{r fig.width=12}
+p1 = ggplot(Table_5_3, aes(x=LogDose)) +
+  geom_point(aes(y=RT)) +
+  labs(y="Recovery Time",
+       x="Log Dose",
+       subtitle="Log Dose vs. Recovery Time (hours)")
+p2 = ggplot(Table_5_3, aes(x=DBP)) +
+  geom_point(aes(y=RT)) +
+  labs(y="Recovery Time",
+       x="Diastolic Blood Pressure",
+       subtitle="Diastolic Blood Pressure vs. Recovery Time (hours)")
+
+p1 + p2 + plot_annotation(tag_levels='a')
+```
+Simple Way:
+```{r}
+Table_5_3 %>% dplyr::select(LogDose,DBP,RT) %>% GGally::ggpairs(progress=F)
+```
+:::{#a1}
+Regression and overall results:
+:::
+```{r}
+fit53 = lm(RT~LogDose+DBP, data=Table_5_3)
+fit53 %>% glance
+```
+:::{#a2}
+Coefficients:
+:::
+```{r}
+fit53 %>% tidy(conf.int=T)
+```
+
+:::{#a3}
+We should always check residuals:
+:::
+```{r}
+fit53 %>% autoplot(1:3)
+```
+We won't comment on residuals here.
+
+### Example 5.2.2
+The F-test comes from the [glance output](#a1).
+
+### Example 5.2.3 and 5.2.4
+The coefficient tests and confidence intervals come from the [tidy output](#a2).
+
+## Variable Transformation (5.3)
+
+### Example 5.3.1 and 5.3.2
+Categorical variables can be dichotomous with just two values, and usually encoded 0-1 or with text. Some can have three or more levels, often encoded as text.
+
+Data from Table 5.4:
+```{r}
+data(Table_5_4)
+Table_5_4
+```
+Code the ethnicity using factor.
+```{r}
+Table_5_4$Ethnicity = as.factor(Table_5_4$Ethnicity)
+```
+
+Regression model:
+```{r}
+fit54 = lm(WaitingTime ~ Ethnicity, data=Table_5_4)
+fit54 %>% tidy
+```
+Non-Latino patients get kidneys on average 303.6 days earlier.
+
+Coding Ethnicity as -1 for Latino and 1 for Non-Latino:
+```{r}
+Table_5_4a = Table_5_4 %>% 
+  mutate(Ethnicity1 = ifelse(Ethnicity == "Latino", 1, -1))
+fit54a = lm(WaitingTime ~ Ethnicity1, data=Table_5_4a)
+fit54a %>% tidy
+```
+Matches the book.
+
+Another approach:
+```{r}
+ggplot(Table_5_4) +
+  geom_boxplot(aes(x=Ethnicity, y=WaitingTime))
+```
+
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/)
+:::
+
+::: {#r2}
+JD Robertson and P Armitage (1959) Comparison of two hypotensive agents. Anaesthesia, 14(1):53–64. 
+:::
+
