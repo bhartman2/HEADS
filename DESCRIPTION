@@ -1,7 +1,7 @@
 Package: HEADS
 Title: Datasets used in exercises in 
   Healthcare Engineering - Analytics and Decision Sciences textbook
-Version: 0.0.0.9100
+Version: 0.0.1.0000
 Authors@R: 
     person("Bruce", "Hartman", , "bruce@ahartman.net", role = c("aut", "cre"))
 Description: The package provides access to datasets required for the textbook.
