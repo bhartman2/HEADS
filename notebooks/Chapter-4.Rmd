@@ -23,6 +23,13 @@ library(yardstick)
 library(car)
 ```
 
+Github packages:
+```{r}
+library(devtools)
+install_github("bhartman2/mbadtools")
+library(mbadtools)
+```
+
 For this text:
 ```{r}
 library(HEADS)

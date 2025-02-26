@@ -23,12 +23,22 @@ library(yardstick)
 library(car)
 ```
 
+Github packages:
+```{r}
+library(devtools)
+install_github("bhartman2/mbadtools")
+library(mbadtools)
+```
+
 For this text:
 ```{r}
 library(HEADS)
 ```
 
 # Univariate Linear Regression (5.7.1)
+
+Data: The data set <code>birthwt</code>
+ is also accessible through the package <code>MASS</code>, see [MASS](#r2).
 
 ```{r}
 data(birthwt)
@@ -64,7 +74,7 @@ fit %>% tidy
 ```{r}
 #plot the graph
 ggplot(birthwt, aes(x=age, y=bwt)) + 
-  geom_smooth(method = lm, se = FALSE) +
+  geom_smooth(method = lm, se = FALSE, formula='y~x') +
   geom_point()
 ```
 
@@ -91,7 +101,7 @@ Let us use all the variables in the model. However, because low is an indicator 
 ```{r}
 #subset the data to exclude the low variable
 birthwt1 = birthwt %>% dplyr::select(-low)
-names(birthwt1)
+birthwt1 %>% colnames
 ```
 After removing low, we can develop a multivariate linear regression model using all of the remaining
 variables. 
@@ -102,6 +112,13 @@ summary(fit)
 ```
 
 According to the summary, the statistically significant variables are lwt, race2, race3, smoke, and ht.
+
+Use a function from package <code>mbadtools</code> to display the significant ones.
+```{r}
+fit %>% tidy %>% gt_add_significance()
+```
+The light green ones are significant at the .05 level.
+
 
 # Nonlinear Transformation of Predictor Variables (5.7.4)
 ```{r}
@@ -115,9 +132,11 @@ summary(fit)
 fit <- lm(bwt~poly(age,6), data = birthwt)
 summary(fit)
 ```
+Only the quadratic term is significant at the .05 level.
 
 # Variable Selection (5.7.5)
-In order to perform stepwise selection, we need to load the library leaps [151](#r2). After loading this library, we use the <code>regsubsets()</code>
+In order to perform stepwise selection, we need to load the package <code>leaps</code>
+ [leaps](#r3). After loading this library, we use the <code>regsubsets()</code>
  function to either perform forward or backward stepwise selection.
 ```{r}
 library(leaps)
@@ -138,7 +157,7 @@ For forward selection, we see that the first variable included in the model is u
 After that, ht is included in the model in the next iteration. For backward selection, ftv is removed from the
 full model in the first iteration and then age in the next iteration as indicated by “*" being not present.
 
-Best model: AIC (Cp) and BIC
+Best model: AIC can be computed from Cp (Cp) and BIC
 ```{r}
 #list C_p for forward stepwise selection models
 fwd.summary$cp
@@ -207,6 +226,7 @@ predict(fit, newx = obs1)
 ```
 
 # Segmented Time Series Analysis (5.7.6)
+This uses a dataset from package [MASS](#r2).
 ```{r}
 data(drivers, package="MASS")
 drivers %>% glimpse
@@ -218,6 +238,7 @@ d$t <- 1:48
 d$ind <- 0
 d$ind[26:48] <- 1
 d$t2 <- pmax(d$t-25,0)
+d %>% glimpse
 ```
 
 ```{r}
@@ -235,4 +256,13 @@ is statistically significant since the corresponding p-value for βˆ2 is 2.57×
 Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
 Analytics, and Decision Sciences: An Introduction. December 11, 2024.
 (https://sites.google.com/view/healthcareengineering/)
+:::
+
+:::{#r2}
+Modern Applied Statistics with S (MASS) (2002) Modern Applied Statistics with S. Fourth Edition
+by W. N. Venables and B. D. Ripley. Springer. ISBN 0-387-95457-0, 2002.(http://www.stats.ox.ac.uk/pub/MASS4/)
+:::
+
+:::{#r3}
+Thomas Lumley. (2024) Package ‘leaps’. (https://cran.r-project.org/web/packages/leaps/leaps.pdf)
 :::

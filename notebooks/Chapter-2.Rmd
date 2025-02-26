@@ -21,6 +21,7 @@ library(patchwork)
 library(yardstick)
 library(car)
 ```
+
 Github packages:
 ```{r}
 library(devtools)
@@ -28,13 +29,16 @@ install_github("bhartman2/mbadtools")
 library(mbadtools)
 ```
 
-
-For this text:
+To install this package: use uncommented in your notebook.
 ```{r}
-library(HEADS)
+# install_github("bhartman2/HEADS")
+# library(HEADS)
 ```
 
+# Chapter 2
+
 # Data
+This data is obtained from [NHANES](#r2).
 ```{r}
 data(bpx_i)
 bpx_i %>% skim
@@ -44,9 +48,6 @@ bpx_i %>% skim
 data(trigly_i)
 trigly_i %>% skim
 ```
-
-
-# Chapter 2
 
 # Exercise 3
 Part 3b: use bpx dataset.
@@ -67,6 +68,7 @@ tibble(
 ) %>% mutate(ratiopct = 100*bigldl/valid)
 ```
 # Exercise 4
+Data in this package for this exercise come from [MEPS](#r3).
 ```{r}
 data(HealthcareCostsMEPS)
 HealthcareCostsMEPS %>% glimpse
@@ -82,14 +84,22 @@ df = HealthcareCostsMEPS %>% group_by(CONDITIONCOUNT) %>%
   summarize( pwt = sum(WEIGHT) ) %>% 
   mutate( prop = 100*pwt/sum(pwt))
 ggplot(df) +
-  geom_col(aes(x=CONDITIONCOUNT,y=prop ), fill="lightblue", color="black")+
+  geom_col(aes(x=CONDITIONCOUNT,y=prop ), fill="lightblue", color="black") +
   labs(x="Number of conditions", y="Population (percent)")
 ```
-
+The percentage of the real US population with a given number of conditions declines exponentially as the number of conditions rises.
 
 # References
 :::{#r1}
 Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
 Analytics, and Decision Sciences: An Introduction. December 11, 2024.
 (https://sites.google.com/view/healthcareengineering/)
+:::
+
+:::{#r2}
+US National Health and Nutrition Examination Survey (NHANES) (2024) (https://wwwn.cdc.gov/nchs/nhanes/Default.aspx)
+:::
+
+:::{#r3}
+Medical Expenditure Panel Survey (MEPS) (2024) (https://meps.ahrq.gov/mepsweb/)
 :::
