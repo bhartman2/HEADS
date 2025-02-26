@@ -1,0 +1,186 @@
+---
+title: "Chapter-8-Lab"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Chapter 8 Lab from [the HEADS text](#r1). The best use is to read in conjunction with the lab in Section 8.4.
+
+# Packages
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+Github packages:
+```{r}
+library(devtools)
+install_github("bhartman2/mbadtools")
+library(mbadtools)
+```
+
+To install this package: use uncommented in your notebook.
+```{r}
+# install_github("bhartman2/HEADS")
+# library(HEADS)
+```
+
+# Chapter 8 Lab (8.4)
+
+Data:
+```{r}
+library(MLDataR)
+data(heartdisease)
+heartdisease %>% glimpse
+```
+Wrangling:
+```{r}
+#convert some variables to factors
+heartdisease$Sex <- as.factor(heartdisease$Sex)
+heartdisease$FastingBS <- as.factor(heartdisease$FastingBS)
+heartdisease$RestingECG <- as.factor(heartdisease$RestingECG)
+heartdisease$Angina <- as.factor(heartdisease$Angina)
+heartdisease$HeartDisease <- as.factor(heartdisease$HeartDisease)
+summary(heartdisease)
+```
+Validation split:
+```{r}
+train <- heartdisease[1:700,]
+test <- heartdisease[701:918,]
+```
+
+## Classification Tree (8.4.1)
+Packages:
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+Model:
+```{r fig.height=12, fig.width=12}
+cart <- rpart(formula = HeartDisease~., data = train, method = "class")
+rpart.plot(cart)
+```
+For example, we build a classification tree that has a maximum depth of 5 and a
+minimum number of 50 patients in each terminal node and we split at each decision when there are at least
+30 patients. We have λ = 0.01. The code is as follows:
+```{r}
+cart2 <- rpart(formula = HeartDisease~., data = train, method = "class",
+    minsplit = 30, minbucket = 50, maxdepth = 5, cp = 0.01)
+rpart.plot(cart2)
+```
+
+We have the other option to
+use information gain to split the node. The code for a simple classification tree is as follows:
+```{r fig.width=12}
+cart3 <- rpart(formula = HeartDisease~., data = train,
+              method = "class", parms = list(split = 'information'))
+rpart.plot(cart3)
+```
+Predict on a patient:
+```{r}
+predict(cart, train[1,], "prob")
+```
+
+Using `cart` model that we developed earlier, we observe that the first patient of the test set has a 18.08%
+probability of having heart disease, so likely, the patient does not have heart disease.
+
+AUC and ROC:
+```{r}
+library(pROC)
+#calculate prediction on test and compute ROC
+pred1 <- predict(cart, test, "prob")[,2]
+roc(test$HeartDisease, pred1)
+
+pred2 <- predict(cart2, test, "prob")[,2]
+roc(test$HeartDisease, pred2)
+
+pred3 <- predict(cart3, test, "prob")[,2]
+roc(test$HeartDisease, pred3)
+```
+
+`pred3` has the highest AUC so is the preferred model.
+
+## Bagging (8.4.2)
+We import the `ipred` library to perform bagging in R. Because bagging is an ensemble of classification trees,
+we use the function `bagging()` in conjunction with the functions in the `rpart` library. In order to specify
+parameters for the classification tree, we use `rpart.control`. Suppose we want to use the same setting as cart2.
+Then, with 100 classification trees, we do the following:
+```{r}
+library(ipred)
+bag <- bagging(formula = HeartDisease~., data = train, nbagg=100, 
+               control = rpart.control(minsplit = 30,
+                                       minbucket = 50,
+                                       maxdepth = 5,
+                                       cp = 0.01))
+bag_pred <- predict(bag, test, "prob")[,2]
+roc(test$HeartDisease, bag_pred)
+```
+By using bagging, we significantly improve the AUC, which conveys how using multiple classification
+trees altogether can have better predictive performance than just one tree.
+
+## Random forest (8.4.3)
+WE set the number of trees to 300.
+```{r}
+library(randomForest)
+rf <- randomForest(formula = HeartDisease~., data = train, ntree = 300)
+rf_pred <- predict(rf, test, "prob")[,2]
+roc(test$HeartDisease, rf_pred)
+```
+We observe that the random forest generally yields a higher AUC than bagging. But here it does not. As with bagging it involves random choice of trees and therefore will not be the same each time.
+
+## SVM (8.4.4)
+To use SVM for binary classification in R, we use the function `ksvm()` from the library `kernlab`. 
+
+```{r}
+library(kernlab)
+ksvm_fit <- ksvm(HeartDisease~., data = train, prob.model=TRUE)
+ksvm_pred <- predict(ksvm_fit, test, "probabilities")[,2]
+roc(test$HeartDisease, ksvm_pred)
+```
+
+Here we fitted a soft-margin SVM model with the default Gaussian kernel and penalty parameter c = 1
+onto the `heartdisease` training set. Note that we need to specify “TRUE" for the argument prob.model so that we obtain a probability value for each classification when using the predict function.
+
+To increase the penalty parameter c for soft-margin SVM, we specify in the argument C. As an example,
+we apply soft-margin SVM with c = 10.
+```{r}
+ksvm_fit2 <- ksvm(HeartDisease~., data = train, prob.model=TRUE, C=10)
+ksvm_pred2 <- predict(ksvm_fit2, test, "probabilities")[,2]
+roc(test$HeartDisease, ksvm_pred2)
+```
+
+We can use different kernels. To specify the parameters for each kernel, we pass a list of hyperparameters through the argument `kpar`. For
+example, we apply an SVM model with polynomial kernel that has degree 2, scale 5, and offset 1.
+
+```{r}
+ksvm_fit3 <- ksvm(HeartDisease~., data = train, prob.model=TRUE, kernel = 'polydot',
+kpar = list(degree=2, scale = 5, offset=1))
+ksvm_pred3 <- predict(ksvm_fit3, test, "probabilities")[,2]
+roc(test$HeartDisease, ksvm_pred3)
+```
+
+For this model, we again obtain a reasonably high AUC for a model that classifies patients with heart
+diseases.
+
+# References
+:::{#r1}
+Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/) Chapter 8.
+:::
+
+<!---
+:::{#r2}
+Machine Learning with Classification (2024) Chapter 11: Trees and Classification. (https://fderyckel.github.io/machinelearningwithr/trees-and-classification.html)
+:::
+--->

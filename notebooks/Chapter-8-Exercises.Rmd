@@ -1,0 +1,257 @@
+---
+title: "Chapter-8-Exercises"
+author: "[Bruce Hartman](https://drbrucehartman.net/brucewebsite/)"
+date: "Last updated: `r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+---
+
+# Introduction
+Chapter 8 Exercises from [the HEADS text](#r1). The best use is to read in conjunction with the exercises in Section 8.4.
+
+# Packages
+Regular R packages:
+```{r}
+library(tidyverse)
+library(ggfortify)
+library(GGally)
+library(broom)
+library(skimr)
+library(gt)
+library(patchwork)
+library(yardstick)
+library(car)
+```
+
+Github packages:
+```{r}
+library(devtools)
+if(!("mbadtools" %in% installed.packages()))
+  devtools::install_github("bhartman2/mbadtools")
+library(mbadtools)
+```
+
+To install this package: use uncommented in your notebook.
+```{r}
+if(!("HEADS" %in% installed.packages()))
+    install_github("bhartman2/HEADS")
+library(HEADS)
+```
+
+# Chapter 8 Exercises
+
+# Exercise 2
+Packages for tree construction.
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+
+Data:
+```{r}
+data(ClassificationTrees, package="HEADS")
+ClassificationTrees %>% glimpse
+```
+
+- CONDITIONCOUNT
+```{r}
+library(DescTools)
+# equally weighted
+Gini(ClassificationTrees$CONDITIONCOUNT, unbiased=FALSE)
+
+#assign weights
+x = ClassificationTrees %>% group_by(CONDITIONCOUNT) %>% summarize(ct=n())
+# old style weights
+y = table(ClassificationTrees$CONDITIONCOUNT) %>%  
+  enframe(name="CONDITIONCOUNT", value="ct1") %>% 
+  mutate(CONDITIONCOUNT=as.numeric(CONDITIONCOUNT))
+# new df with weights
+df = left_join(ClassificationTrees, x, by="CONDITIONCOUNT")
+df1 = left_join(ClassificationTrees, y, by="CONDITIONCOUNT")
+
+#weighted by frequency
+# Gini(df$CONDITIONCOUNT, df$ct, unbiased=FALSE)
+Gini(df1$CONDITIONCOUNT, df1$ct1, unbiased=FALSE)
+```
+`Gini()` works.
+
+Test all groupings: note we are using the weighted Ginis.
+```{r}
+n = nrow(y)
+gini=c()
+for (i in 0:n) {
+  left = 0:i
+  right = (i+1):n
+  temp = df %>% mutate(cut = case_when(CONDITIONCOUNT %in% left ~ 1, .default= 0))
+  if (i==5) glimpse(temp)
+  wt = table(temp$cut) %>% enframe(name="cut", value="wt") %>% 
+    mutate(cut=as.numeric(cut)) 
+  temp1 = left_join(temp, wt, by="cut")
+  gini[i] = Gini(temp1$CONDITIONCOUNT, temp1$wt, unbiased=F)
+}
+gini %>% round(digits=5)
+ggplot() +
+  geom_line(aes(0:(n-1), gini), linetype="dotted") +
+  geom_point(aes(0:(n-1), gini)) +
+  geom_point(aes(which.min(gini)-1, gini[which.min(gini)]), color="red", size=4) +
+  geom_text(aes(x=which.min(gini)-1, 
+           y=gini[which.min(gini)], 
+           label=round(gini[which.min(gini)], 3)), nudge_y=-.005) +
+  coord_cartesian(xlim=c(0,n)) +
+  scale_x_continuous(breaks=seq(0,13,1))+
+  labs(x="Condition Count") +
+  theme_bw()
+```
+It looks like the minimum occurs at `CONDITIONCOUNT` = 3, meaning classes of <3, and >=3.
+
+Try with `ginit`:
+
+```{r}
+tbl = table(ClassificationTrees$CONDITIONCOUNT, ClassificationTrees$YCosts80pct) %>% addmargins
+tbl
+ginit(tbl)
+```
+
+
+```{r}
+gs = ginisearch(ClassificationTrees, "CONDITIONCOUNT", "YCosts80pct")
+gs %>% plot_ginisearch + labs(x="CONDITIONCOUNT")
+```
+
+
+```{r warning=FALSE}
+gs = ginisearch(ClassificationTrees, "Age", "YCosts80pct")
+gs %>% plot_ginisearch + labs(x="Age")
+```
+
+
+Try with `rpart`:
+```{r}
+rp2 = rpart(factor(YCosts80pct)~CONDITIONCOUNT, data=ClassificationTrees, 
+            method="class", maxdepth=1)
+rpart.plot(rp2)
+# rp2 %>% glimpse
+ggplot(ClassificationTrees %>% mutate(cl = rp2$where)) +
+  geom_col(aes(CONDITIONCOUNT, YCosts80pct, color=factor(cl)), linewidth=3)
+t2 = table(ClassificationTrees$YCosts80pct, factor(rp2$where-2), 
+      dnn = c("truth","estimate")) %>% 
+  addmargins
+t2
+t2 %>% ginit
+```
+
+- Age
+```{r}
+library(DescTools)
+# equally weighted
+Gini(ClassificationTrees$Age, unbiased=FALSE)
+
+#assign weights
+x = ClassificationTrees %>% group_by(Age) %>% summarize(ct=n())
+df = left_join(ClassificationTrees, x, by="Age")
+
+#weighted by frequency
+Gini(df$Age, df$ct, unbiased=FALSE)
+```
+
+
+```{r}
+rp2 = rpart(factor(YCosts80pct)~CONDITIONCOUNT, data=ClassificationTrees, 
+            method="class", maxdepth=1)
+rpart.plot(rp2)
+# rp2 %>% glimpse
+ggplot(ClassificationTrees %>% mutate(cl = rp2$where)) +
+  geom_col(aes(CONDITIONCOUNT, YCosts80pct, color=factor(cl)), size=3)
+tt2 =table(ClassificationTrees$YCosts80pct, factor(rp2$where-2), 
+      dnn = c("truth","estimate")) %>% 
+  addmargins
+tt2
+ginit(tt2)
+```
+```{r}
+rp2a = rpart(factor(YCosts80pct)~Age + CONDITIONCOUNT, data=ClassificationTrees, 
+            method="class", maxdepth=1)
+rpart.plot(rp2a)
+# ggplot(ClassificationTrees %>% mutate(cl = rp2a$where)) +
+#   geom_col(aes(CONDITIONCOUNT, YCosts80pct, color=factor(cl)), size=3)
+tt2a =table(ClassificationTrees$YCosts80pct, factor(rp2a$where-2), dnn = c("truth","estimate")) %>% 
+  addmargins
+tt2a
+ginit(tt2a)
+```
+
+# Exercise 6
+```{r}
+data("DemoLogisticRegression", package="HEADS")
+DemoLogisticRegression %>% glimpse
+df6 = DemoLogisticRegression %>% mutate(Damage = case_when(
+  Damage == "YES"~1,
+  .default = 0) %>% as.factor)
+
+# add a fake random miles column to be able to run ksvm
+set.seed(123)
+df61 = df6 %>% select(-1) %>% 
+  mutate(Miles = rnorm(nrow(df6), mean=500, sd=300) ) %>% 
+  relocate(Damage, .after=Miles)
+
+df61 %>% glimpse
+```
+
+```{r}
+ggplot(DemoLogisticRegression) +
+  geom_boxplot(aes(Damage, Temp, color=Damage))+
+    scale_color_manual(values=c("blue","red"))
+
+ggplot(DemoLogisticRegression) +
+  geom_point(aes(Temp, Damage, color=Damage))+
+    scale_color_manual(values=c("blue","red"))
+
+ggplot(DemoLogisticRegression) +
+  geom_point(aes(Flight, Temp, color=Damage))+
+  scale_color_manual(values=c("blue","red"))
+```
+
+Analysis of data for `ksvm` model.
+```{r}
+list(
+  ggplot(df61) +
+    geom_boxplot(aes(Damage, Temp, color=Damage)) +
+    scale_color_manual(values=c("blue","red")),
+  ggplot(df61) +
+    geom_boxplot(aes(Damage, Miles, color=Damage))+
+    scale_color_manual(values=c("blue","red"))
+) %>% 
+wrap_plots(nrow=1, guides="collect")
+```
+
+Run `ksvm` model. We run unscaled model so we can contour; this is not the preferred way.
+```{r}
+svmfit61 = ksvm(Damage~Temp+Miles,
+              data=df61, 
+              kernel="vanilladot",
+              C=1,
+              scaled=F
+              )
+svmfit61
+```
+
+Don't plot the contours for a scaled model.
+```{r}
+gg_plotsvm(svmfit61, df61,
+                    Temp,
+                    Miles,
+                    color=Damage) +
+  gg_plotsvm_contour(grid=svmgrid(df61, svmfit61), legend=T, bins=10) +
+  gg_plotsvm_margin(svmmargin(svmfit61), x=65, y=875, scaled=T) +
+  gg_plotsvm_lines(svmfit61, margin.lines = T)
+```
+
+# References
+:::{#r1}
+1. Mehrotra, Sanjay, Kevin Bui, and Hari Balasubramanian (2024). Healthcare Engineering,
+Analytics, and Decision Sciences: An Introduction. December 11, 2024.
+(https://sites.google.com/view/healthcareengineering/) Chapter 8.
+:::
+
+:::{#r2}
+2. Machine Learning with Classification (2024) Chapter 11: Trees and Classification. (https://fderyckel.github.io/machinelearningwithr/trees-and-classification.html)
+:::
